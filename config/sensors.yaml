@@ -1,0 +1,39 @@
+fog:
+  aggregation_window_s: 5
+  anomaly_window_size: 20
+  sqlite_buffer_limit: 10000
+  mqtt:
+    local:
+      host: localhost
+      port: 1883
+
+domains:
+  rental:
+    vehicle_prefix: RNT
+    sensors:
+      telematics: { dispatch_rate_s: 5, anomaly_probability: 0.02 }
+      engine_drivetrain: { dispatch_rate_s: 10, anomaly_probability: 0.01 }
+      driver_behaviour: { dispatch_rate_s: 30, anomaly_probability: 0.05 }
+      environment_cabin: { dispatch_rate_s: 15, anomaly_probability: 0.01 }
+  fleet:
+    vehicle_prefix: FLT
+    sensors:
+      telematics: { dispatch_rate_s: 10, anomaly_probability: 0.02 }
+      engine_drivetrain: { dispatch_rate_s: 10, anomaly_probability: 0.01 }
+      driver_behaviour: { dispatch_rate_s: 30, anomaly_probability: 0.03 }
+      load_structural: { dispatch_rate_s: 5, anomaly_probability: 0.02 }
+      environment_cabin: { dispatch_rate_s: 15, anomaly_probability: 0.01 }
+  industrial:
+    vehicle_prefix: IND
+    sensors:
+      telematics: { dispatch_rate_s: 2, anomaly_probability: 0.03 }
+      engine_drivetrain: { dispatch_rate_s: 10, anomaly_probability: 0.02 }
+      load_structural: { dispatch_rate_s: 1, anomaly_probability: 0.04 }
+      environment_cabin: { dispatch_rate_s: 15, anomaly_probability: 0.01 }
+
+geofences:
+  dublin_rental_zone:
+    - [53.30, -6.35]
+    - [53.30, -6.15]
+    - [53.42, -6.15]
+    - [53.42, -6.35]
