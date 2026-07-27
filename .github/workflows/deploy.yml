@@ -2,15 +2,9 @@ name: Deploy AWS
 
 on:
   workflow_dispatch:
-    inputs:
-      role_to_assume:
-        description: IAM role ARN trusted for GitHub OIDC deployment
-        required: true
-        type: string
 
 permissions:
   contents: read
-  id-token: write
 
 jobs:
   deploy:
@@ -25,7 +19,9 @@ jobs:
           node-version: '24'
       - uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ inputs.role_to_assume }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: eu-west-1
       - run: python -m pip install -r infrastructure/requirements.txt
       - run: npm ci --prefix web
