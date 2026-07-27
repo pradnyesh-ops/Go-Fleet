@@ -22,24 +22,25 @@ def generate_events(timestamp: str) -> list[SensorEvent]:
     """Create one fog-processed event for every configured sensor stream."""
     config = load_config(ROOT / "config" / "sensors.yaml")
     generated_events = []
-    for index, (domain_name, profile) in enumerate(config["domains"].items(), start=1):
+    for domain_index, (domain_name, profile) in enumerate(config["domains"].items(), start=1):
         domain = Domain(domain_name)
-        vehicle_id = f"{profile['vehicle_prefix']}-{index:04d}"
-        processor = FogProcessor(
-            fog_node_id=f"FOG-{profile['vehicle_prefix']}-DUBLIN-01",
-            geofence=config["geofences"]["dublin_rental_zone"] if domain is Domain.RENTAL else None,
-        )
-        generator = VehicleSensorGenerator(domain, seed=index)
-        for sensor_type in profile["sensors"]:
-            generated_events.append(
-                processor.process(
-                    vehicle_id=vehicle_id,
-                    domain=domain,
-                    sensor_type=sensor_type,
-                    timestamp=timestamp,
-                    sensor_data=generator.generate(sensor_type),
-                )
+        for vehicle_index in range(1, int(profile.get("vehicle_count", 1)) + 1):
+            vehicle_id = f"{profile['vehicle_prefix']}-{domain_index * 1000 + vehicle_index:04d}"
+            processor = FogProcessor(
+                fog_node_id=f"FOG-{profile['vehicle_prefix']}-DUBLIN-{vehicle_index:02d}",
+                geofence=config["geofences"]["dublin_rental_zone"] if domain is Domain.RENTAL else None,
             )
+            generator = VehicleSensorGenerator(domain, seed=domain_index * 100 + vehicle_index)
+            for sensor_type in profile["sensors"]:
+                generated_events.append(
+                    processor.process(
+                        vehicle_id=vehicle_id,
+                        domain=domain,
+                        sensor_type=sensor_type,
+                        timestamp=timestamp,
+                        sensor_data=generator.generate(sensor_type),
+                    )
+                )
     return generated_events
 
 

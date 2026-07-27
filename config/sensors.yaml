@@ -8,6 +8,7 @@
   "domains": {
     "rental": {
       "vehicle_prefix": "RNT",
+      "vehicle_count": 4,
       "sensors": {
         "telematics": {"dispatch_rate_s": 5, "anomaly_probability": 0.02},
         "engine_drivetrain": {"dispatch_rate_s": 10, "anomaly_probability": 0.01},
@@ -17,6 +18,7 @@
     },
     "fleet": {
       "vehicle_prefix": "FLT",
+      "vehicle_count": 4,
       "sensors": {
         "telematics": {"dispatch_rate_s": 10, "anomaly_probability": 0.02},
         "engine_drivetrain": {"dispatch_rate_s": 10, "anomaly_probability": 0.01},
@@ -27,6 +29,7 @@
     },
     "industrial": {
       "vehicle_prefix": "IND",
+      "vehicle_count": 4,
       "sensors": {
         "telematics": {"dispatch_rate_s": 2, "anomaly_probability": 0.03},
         "engine_drivetrain": {"dispatch_rate_s": 10, "anomaly_probability": 0.02},
