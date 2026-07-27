@@ -189,6 +189,7 @@ class FleetPlatformStack(cdk.Stack):
         vehicle = api.root.add_resource("vehicles").add_resource("{vehicleId}")
         vehicle.add_method("GET")
         vehicle.add_resource("latest").add_method("GET")
+        api.root.add_resource("alerts").add_method("GET")
 
         dashboard_bucket = s3.Bucket(
             self,
