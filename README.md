@@ -1,16 +1,6 @@
 # Fleet Intelligence Platform
-
-Phase 1 implementation of a multi-domain vehicle telemetry platform with local
+a multi-domain vehicle telemetry platform with local
 fog processing and a low-cost AWS serverless backend.
-
-## Implemented Local Flow
-
-`Sensor generators -> fog processor -> validated MQTT event -> SQLite outbox`
-
-The local implementation supports rental, fleet, and industrial profiles; all
-five sensor types; configurable YAML rates; rolling anomaly scoring; ray-cast
-geofence checks; domain/category tagging; deterministic event IDs; and ordered
-offline replay.
 
 ## Quick Start
 
@@ -40,21 +30,3 @@ npx aws-cdk@2 deploy --app '.venv/bin/python infrastructure/app.py'
 Run `cdk diff` before deployment and `cdk destroy` after the assessment to
 avoid charges. AWS credentials and IoT certificates are intentionally not
 stored in this repository.
-
-## CI/CD Setup
-
-`.github/workflows/validate.yml` runs Python tests, the dashboard production
-build, and CDK synthesis for pull requests and changes to `main`.
-
-`.github/workflows/deploy.yml` performs an explicitly triggered deployment via
-GitHub OpenID Connect. Before using it:
-
-1. Create an IAM role trusted by `token.actions.githubusercontent.com`, limited
-	to this repository.
-2. Grant that role the CDK deployment permissions for the bootstrapped account.
-3. Run the **Deploy AWS** workflow manually from GitHub Actions and provide the
-	role ARN when prompted. An IAM role ARN is not a secret.
-
-The workflow does not use long-lived AWS access keys. After deployment, open the
-`DashboardUrl` CloudFormation stack output to use the cloud dashboard. The fog
-layer remains a local simulation until AWS IoT certificates are configured.
