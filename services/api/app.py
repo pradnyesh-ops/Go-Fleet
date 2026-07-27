@@ -18,7 +18,12 @@ class DecimalEncoder(json.JSONEncoder):
 def response(status_code: int, body: object) -> dict[str, object]:
     return {
         "statusCode": status_code,
-        "headers": {"Content-Type": "application/json"},
+        "headers": {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET,OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type",
+        },
         "body": json.dumps(body, cls=DecimalEncoder),
     }
 

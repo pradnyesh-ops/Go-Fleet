@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useEffectEvent, useState } from 'react'
 import { Activity, AlertTriangle, Bell, Box, Check, ChevronDown, CircleAlert, Clock3, Fuel, Gauge, LockKeyhole, MapPin, MoreHorizontal, Radio, RefreshCw, Route, ShieldCheck, Truck, Unlock, Users, X } from 'lucide-react'
 import './App.css'
 
@@ -33,6 +33,7 @@ export default function App() {
   const [updated, setUpdated] = useState(null)
   const [refreshing, setRefreshing] = useState(false)
   const [loadError, setLoadError] = useState('')
+  const [refreshKey, setRefreshKey] = useState(0)
 
   const current = domains[domain]
   const visible = vehicles.filter((vehicle) => vehicle.domain === domain)
@@ -42,37 +43,45 @@ export default function App() {
   const history = selectedRecord.items || []
   const isLocked = Boolean(locks[selected.id])
 
-  const loadVehicle = async (vehicleId) => {
+  const loadVehicle = useEffectEvent(async (vehicleId, includeHistory = false) => {
     if (!apiBaseUrl) return
-    const [historyResponse, latestResponse] = await Promise.all([
-      fetch(`${apiBaseUrl}/vehicles/${vehicleId}`),
-      fetch(`${apiBaseUrl}/vehicles/${vehicleId}/latest`),
-    ])
-    if (!historyResponse.ok || !latestResponse.ok) throw new Error('Cloud telemetry is unavailable')
-    const [eventHistory, currentState] = await Promise.all([historyResponse.json(), latestResponse.json()])
-    setRecords((previous) => ({ ...previous, [vehicleId]: { items: eventHistory.items || [], latest: currentState || {} } }))
-  }
-  const refresh = async () => {
+    const latestResponse = await fetch(`${apiBaseUrl}/vehicles/${vehicleId}/latest`)
+    if (!latestResponse.ok) throw new Error('Cloud telemetry is unavailable')
+    const currentState = await latestResponse.json()
+    let eventHistory = records[vehicleId]?.items || []
+    if (includeHistory) {
+      const historyResponse = await fetch(`${apiBaseUrl}/vehicles/${vehicleId}`)
+      if (!historyResponse.ok) throw new Error('Cloud telemetry is unavailable')
+      eventHistory = (await historyResponse.json()).items || []
+    }
+    setRecords((previous) => ({ ...previous, [vehicleId]: { items: eventHistory, latest: currentState || {} } }))
+  })
+  const refresh = useEffectEvent(async () => {
     setRefreshing(true)
     setLoadError('')
     try {
-      await Promise.all(vehicles.map((vehicle) => loadVehicle(vehicle.id)))
+      await Promise.all(visible.map((vehicle) => loadVehicle(vehicle.id, vehicle.id === selectedId)))
       setUpdated(new Date())
     } catch (error) {
       setLoadError(error.message)
     } finally {
       setRefreshing(false)
     }
-  }
+  })
   useEffect(() => {
     refresh()
     const interval = setInterval(refresh, 30000)
     return () => clearInterval(interval)
-  }, [])
+  }, [refreshKey])
+  useEffect(() => {
+    loadVehicle(selectedId, true).catch((error) => setLoadError(error.message))
+  }, [selectedId])
   const selectDomain = (nextDomain) => {
     setDomain(nextDomain)
     setSelectedId(vehicles.find((vehicle) => vehicle.domain === nextDomain).id)
+    setRefreshKey((value) => value + 1)
   }
+  const requestRefresh = () => setRefreshKey((value) => value + 1)
   const toggleLock = () => setLocks((previous) => ({ ...previous, [selected.id]: !previous[selected.id] }))
   const eventRows = history.slice(0, allEvents ? 50 : 5)
   const highSeverity = history.filter((event) => event.anomaly_score > 0.8).length
@@ -80,7 +89,7 @@ export default function App() {
   return <main className="app-shell">
     <header className="topbar"><a className="brand" href="#overview"><span className="brand-mark"><Radio size={19} /></span><span>FLEET<span>INTEL</span></span></a><div className="topbar-actions"><span className="live-pill"><i /> AWS live data</span><button className="icon-button" aria-label="Notifications"><Bell size={19} /></button><button className="avatar">PM</button></div></header>
     <div className="workspace"><aside className="sidebar"><nav><a className="nav-item active" href="#overview"><Gauge size={18} />Overview</a><a className="nav-item" href="#map"><MapPin size={18} />Live map</a><a className="nav-item" href="#events"><Activity size={18} />Event stream</a><a className="nav-item" href="#safety"><ShieldCheck size={18} />Safety & compliance</a></nav><div className="sidebar-footer"><span className="section-label">Data pipeline</span><div className="pipeline-status"><i /><span>Cloud simulator</span><strong>12 assets</strong></div><div className="pipeline-status"><i /><span>Refresh interval</span><strong>30s</strong></div></div></aside>
-      <section className="content" id="overview"><div className="page-heading"><div><p className="eyebrow">Multi-domain vehicle intelligence</p><h1>{current.label}</h1><p className="muted"><MapPin size={15} /> {current.location} <span className="dot-divider">•</span> {loadError || (updated ? `Updated ${relativeTime(updated)}` : 'Connecting to AWS')}</p></div><div className="heading-actions"><div className="domain-switcher">{Object.keys(domains).map((key) => <button key={key} className={domain === key ? 'selected' : ''} onClick={() => selectDomain(key)}>{key}</button>)}</div><button className="refresh-button" onClick={refresh}><RefreshCw className={refreshing ? 'spinning' : ''} size={17} />Refresh</button></div></div>
+      <section className="content" id="overview"><div className="page-heading"><div><p className="eyebrow">Multi-domain vehicle intelligence</p><h1>{current.label}</h1><p className="muted"><MapPin size={15} /> {current.location} <span className="dot-divider">•</span> {loadError || (updated ? `Updated ${relativeTime(updated)}` : 'Connecting to AWS')}</p></div><div className="heading-actions"><div className="domain-switcher">{Object.keys(domains).map((key) => <button key={key} className={domain === key ? 'selected' : ''} onClick={() => selectDomain(key)}>{key}</button>)}</div><button className="refresh-button" onClick={requestRefresh}><RefreshCw className={refreshing ? 'spinning' : ''} size={17} />Refresh</button></div></div>
         <section className="metrics-grid"><Metric icon={Truck} label={current.activeLabel} value={visible.length} note="Cloud-simulated assets" /><Metric icon={AlertTriangle} label="High-severity alerts" value={highSeverity} note="Selected asset history" tone="amber" /><Metric icon={Users} label="Connected assets" value="12" note="Across all operating domains" tone="blue" /><Metric icon={Gauge} label="Latest signal" value={latest.timestamp ? 'Live' : 'Waiting'} note={latest.timestamp ? relativeTime(latest.timestamp) : 'Simulator is starting'} tone="green" /></section>
         <section className="dashboard-grid"><article className="map-panel" id="map"><div className="panel-header"><div><h2>Live vehicle map</h2><p>Cloud simulator positions by operating domain</p></div><span className="map-count">{visible.length} online</span></div><div className="map-canvas"><i className="road road-one" /><i className="road road-two" /><i className="road road-three" /><span className="zone-label zone-one">ACTIVE ZONE</span><span className="zone-label zone-two">TELEMETRY GRID</span>{visible.map((vehicle) => <button key={vehicle.id} title={vehicle.id} className={`vehicle-pin pin-${vehicle.color} ${vehicle.id === selected.id ? 'is-selected' : ''}`} style={{ left: `${vehicle.x}%`, top: `${vehicle.y}%` }} onClick={() => setSelectedId(vehicle.id)}><Truck size={15} /></button>)}<div className="map-legend"><span><i className="legend teal" />Rental</span><span><i className="legend amber" />Fleet</span><span><i className="legend blue" />Industrial</span></div></div><div className="vehicle-list">{visible.map((vehicle) => { const state = records[vehicle.id]?.latest || {}; return <button key={vehicle.id} className={`vehicle-row ${vehicle.id === selected.id ? 'row-selected' : ''}`} onClick={() => setSelectedId(vehicle.id)}><i className={`status-dot ${vehicle.color}`} /><strong>{vehicle.id}</strong><span>{state.sensor_type?.replace('_', ' ') || 'Awaiting signal'}</span><span>{state.sensor_data?.speed_kmh ?? '—'} km/h</span><span>{relativeTime(state.timestamp)}</span></button> })}</div></article>
           <aside className="alert-panel"><div className="panel-header"><div><h2>Selected asset</h2><p>Latest cloud telemetry</p></div><button className="more-button" aria-label="More options"><MoreHorizontal size={18} /></button></div><div className="vehicle-detail"><span className={`detail-icon pin-${selected.color}`}><Truck size={16} /></span><div><strong>{selected.id}</strong><p>{latest.sensor_type?.replace('_', ' ') || 'Awaiting simulator event'}</p></div><button className="close-selection" onClick={() => setSelectedId(visible[0].id)} aria-label="Reset selection"><X size={16} /></button></div><dl className="telemetry-grid"><div><dt>Speed</dt><dd>{latest.sensor_data?.speed_kmh ?? '—'} <small>km/h</small></dd></div><div><dt>Fuel</dt><dd>{latest.sensor_data?.fuel_level_pct ?? '—'} <small>%</small></dd></div><div><dt>Signal</dt><dd>{latest.timestamp ? relativeTime(latest.timestamp) : 'Waiting'}</dd></div></dl><div className={`lock-status ${isLocked ? 'locked' : ''}`}>{isLocked ? <LockKeyhole size={15} /> : <Unlock size={15} />}{isLocked ? 'Geo-lock active for selected asset' : 'Geo-lock is not active'}</div><button className={`primary-action ${isLocked ? 'release' : ''}`} onClick={toggleLock}>{isLocked ? <><Unlock size={15} />Release lock</> : <><LockKeyhole size={15} />{current.lock}</>}</button><p className="action-note">{current.detail}</p><div className="queue-stats"><div><span>Events received</span><strong>{history.length}</strong></div><div><span>Alert score</span><strong>{latest.anomaly_score ?? '0.0'}</strong></div></div><div className="alert-footer"><Check size={14} /> Cloud pipeline connected</div></aside></section>
