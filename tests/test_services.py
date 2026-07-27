@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from services.ingestion.app import parse_iot_event
 from services.processor.app import to_storage_items
 
@@ -35,3 +37,14 @@ def test_processor_storage_items_preserve_idempotency_and_query_keys() -> None:
     assert history["timestamp_event_id"].endswith(event.event_id)
     assert history["category_timestamp"] == "usage#2026-07-27T09:15:01Z"
     assert latest["vehicle_id"] == "RNT-2041"
+
+
+def test_processor_converts_floats_to_dynamodb_decimals() -> None:
+    normalized = parse_iot_event(payload()).to_dict()
+
+    history, latest = to_storage_items(normalized)
+
+    assert history["payload"]["sensor_data"]["latitude"] == Decimal("53.3498")
+    assert latest["sensor_data"]["longitude"] == Decimal("-6.2603")
+    assert history["anomaly_score"] == Decimal("0.1")
+    assert latest["anomaly_score"] == Decimal("0.1")

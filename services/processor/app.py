@@ -3,9 +3,21 @@
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal
 import json
 import os
 from typing import Any
+
+
+def to_dynamodb_value(value: Any) -> Any:
+    """Convert JSON-compatible values to DynamoDB's supported Python types."""
+    if isinstance(value, float):
+        return Decimal(str(value))
+    if isinstance(value, dict):
+        return {key: to_dynamodb_value(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [to_dynamodb_value(item) for item in value]
+    return value
 
 
 def to_storage_items(payload: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -19,7 +31,7 @@ def to_storage_items(payload: dict[str, Any]) -> tuple[dict[str, Any], dict[str,
         "category_timestamp": f"{payload['data_category']}#{timestamp}",
         "sensor_type": payload["sensor_type"],
         "anomaly_score": payload["anomaly_score"],
-        "payload": payload,
+        "payload": to_dynamodb_value(payload),
         "ttl": int(datetime.fromisoformat(timestamp.replace("Z", "+00:00")).timestamp())
         + 90 * 24 * 60 * 60,
     }
@@ -30,9 +42,9 @@ def to_storage_items(payload: dict[str, Any]) -> tuple[dict[str, Any], dict[str,
         "data_category": payload["data_category"],
         "sensor_type": payload["sensor_type"],
         "anomaly_score": payload["anomaly_score"],
-        "sensor_data": payload["sensor_data"],
+        "sensor_data": to_dynamodb_value(payload["sensor_data"]),
     }
-    return event_item, latest_item
+    return to_dynamodb_value(event_item), to_dynamodb_value(latest_item)
 
 
 def _archive_key(payload: dict[str, Any]) -> str:
@@ -97,6 +109,7 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
             _process_record(
                 json.loads(record["body"]), events_table, latest_table, archive_bucket, alerts
             )
-        except Exception:
+        except Exception as error:
+            print(f"Failed to process telemetry record {record['messageId']}: {error}")
             failures.append({"itemIdentifier": record["messageId"]})
     return {"batchItemFailures": failures}
