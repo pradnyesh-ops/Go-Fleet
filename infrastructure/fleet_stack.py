@@ -11,6 +11,8 @@ from aws_cdk import (
     aws_cloudfront as cloudfront,
     aws_cloudfront_origins as cloudfront_origins,
     aws_dynamodb as dynamodb,
+    aws_events as events,
+    aws_events_targets as events_targets,
     aws_iam as iam,
     aws_iot as iot,
     aws_lambda as lambda_,
@@ -134,6 +136,27 @@ class FleetPlatformStack(cdk.Stack):
                 ],
                 rule_disabled=False,
             ),
+        )
+
+        simulator = lambda_.Function(
+            self,
+            "CloudSimulator",
+            runtime=lambda_.Runtime.PYTHON_3_11,
+            handler="services.simulator.app.handler",
+            code=lambda_.Code.from_asset(
+                str(project_root),
+                exclude=[".venv", ".pytest_cache", "cdk.out", "tests", "web"],
+            ),
+            timeout=Duration.seconds(30),
+            memory_size=256,
+            environment={"QUEUE_URL": queue.queue_url},
+        )
+        queue.grant_send_messages(simulator)
+        events.Rule(
+            self,
+            "CloudSimulatorSchedule",
+            schedule=events.Schedule.rate(Duration.minutes(1)),
+            targets=[events_targets.LambdaFunction(simulator)],
         )
 
         dashboard_api = lambda_.Function(
