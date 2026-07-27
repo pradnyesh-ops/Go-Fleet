@@ -29,6 +29,8 @@ def test_cloud_simulator_emits_risk_bands_and_latest_telematics() -> None:
     events = generate_events("2026-07-27T09:15:01Z")
 
     assert {event.sensor_data["risk_band"] for event in events} <= {"normal", "advisory", "critical"}
+    assert all(event.sensor_data["incident_type"] for event in events)
+    assert all(event.sensor_data["incident_summary"] for event in events)
     for vehicle_id in {event.vehicle_id for event in events}:
         vehicle_events = [event for event in events if event.vehicle_id == vehicle_id]
         assert max(vehicle_events, key=lambda event: event.timestamp).sensor_type == "telematics"

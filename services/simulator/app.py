@@ -25,23 +25,37 @@ def enrich_operational_risk(event: SensorEvent, seed: str) -> SensorEvent:
     random = Random(seed)
     data = dict(event.sensor_data)
     score = event.anomaly_score
+    incident_type = "normal_operation"
+    incident_summary = "No operational issue detected."
     if event.sensor_type == "telematics" and random.random() < 0.24:
         data.update({"speed_kmh": round(random.uniform(103, 128), 1), "idle_seconds": 0})
         score = max(score, round(random.uniform(0.42, 0.76), 2))
+        incident_type = "overspeeding"
+        incident_summary = f"Overspeeding detected at {data['speed_kmh']} km/h."
     elif event.sensor_type == "driver_behaviour" and random.random() < 0.3:
         data.update({"event_type": "hard_brake", "severity_g": round(random.uniform(0.62, 0.92), 2)})
         score = max(score, round(random.uniform(0.45, 0.78), 2))
+        incident_type = "hard_braking"
+        incident_summary = f"Hard braking detected at {data['severity_g']}g."
     elif event.sensor_type == "engine_drivetrain" and random.random() < 0.22:
         data.update({"engine_temp_c": round(random.uniform(105, 119), 1), "oil_pressure_bar": round(random.uniform(1.6, 2.5), 2)})
         score = max(score, round(random.uniform(0.68, 0.93), 2))
+        incident_type = "engine_overtemperature"
+        incident_summary = f"Engine over-temperature at {data['engine_temp_c']}C with low oil pressure."
     elif event.sensor_type == "load_structural" and random.random() < 0.2:
         capacity = data["rated_capacity_kg"]
         data.update({"cargo_weight_kg": round(capacity * random.uniform(1.01, 1.12), 1), "load_utilisation_pct": round(random.uniform(101, 112), 1), "tilt_angle_deg": round(random.uniform(6, 11), 1)})
         score = max(score, round(random.uniform(0.74, 0.96), 2))
+        incident_type = "load_overcapacity"
+        incident_summary = f"Load exceeds rated capacity at {data['load_utilisation_pct']}% with unsafe tilt."
     elif event.sensor_type == "environment_cabin" and random.random() < 0.16:
         data.update({"impact_detected": True, "fuel_level_pct": round(random.uniform(4, 12), 1)})
         score = max(score, round(random.uniform(0.72, 0.91), 2))
+        incident_type = "impact_and_low_fuel"
+        incident_summary = f"Impact detected; fuel reserve is {data['fuel_level_pct']}%."
     data["risk_band"] = "critical" if score >= 0.8 else "advisory" if score >= 0.4 else "normal"
+    data["incident_type"] = incident_type
+    data["incident_summary"] = incident_summary
     return replace(event, sensor_data=data, anomaly_score=score)
 
 
